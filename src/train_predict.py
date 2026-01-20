@@ -51,9 +51,7 @@ def parse_args():
     return p.parse_args()
 
 
-# -----------------------
 # Feature engineering
-# -----------------------
 def add_hyvonen_physics_features_strict(df_in: pd.DataFrame):
     df_fe = df_in.copy()
     eps = 1e-6
@@ -110,9 +108,7 @@ def add_hyvonen_physics_features_strict(df_in: pd.DataFrame):
     return df_fe, engineered_cols
 
 
-# -----------------------
-# CV helpers (NO globals)
-# -----------------------
+# CV helpers 
 def combined_cv_predict_hard_strict_gate_full(
     X_all: np.ndarray,
     y2: np.ndarray,
@@ -220,9 +216,7 @@ def combined_cv_predict_proba_strict_gate_full(
 
 
 def main():
-    # -----------------------
-    # 0) Parse args and load data
-    # -----------------------
+    #  Parse args and load data
     args = parse_args()
 
     if not args.train.exists():
@@ -233,9 +227,7 @@ def main():
     df = pd.read_csv(args.train)
     df_test = pd.read_csv(args.test)
 
-    # -----------------------
-    # 1) Auto baseline feature columns
-    # -----------------------
+    #  Auto baseline feature columns
     non_feature_cols = {"class4", "class2", "id", "date", "datetime", "time", "partlybad"}
 
     feature_cols = [
@@ -247,18 +239,14 @@ def main():
     print("Baseline feature count:", len(feature_cols))
     print("First 15 baseline features:", feature_cols[:15])
 
-    # -----------------------
-    # 2) Labels + mappings
-    # -----------------------
+    # Labels + mappings
     y4 = df["class4"].values
     y2 = np.where(y4 == "nonevent", 0, 1).astype(int)
 
     classes4_order = ["Ia", "Ib", "II", "nonevent"]
     int_to_event = {0: "Ia", 1: "Ib", 2: "II"}
 
-    # -----------------------
-    # 3) Feature engineering (train + test)
-    # -----------------------
+    # Feature engineering (train + test)
     df_fe, engineered_cols = add_hyvonen_physics_features_strict(df)
     df_test_fe, _ = add_hyvonen_physics_features_strict(df_test)
 
@@ -269,9 +257,7 @@ def main():
     X_hyv = df_fe[feature_cols_hyv].values
     X_hyv_test = df_test_fe[feature_cols_hyv].values
 
-    # -----------------------
-    # 4) Models
-    # -----------------------
+    # Models
     lr_gate = Pipeline(
         steps=[
             ("scaler", StandardScaler()),
@@ -292,14 +278,10 @@ def main():
         ]
     )
 
-    # -----------------------
-    # 5) CV setup
-    # -----------------------
+    # CV setup
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
 
-    # -----------------------
-    # 6) Stage 1 CV metrics (class2)
-    # -----------------------
+    # Stage 1 CV metrics (class2)
     probs_stage1 = cross_val_predict(
         lr_gate, X_hyv, y2, cv=cv, method="predict_proba", n_jobs=-1
     )
@@ -316,9 +298,7 @@ def main():
     print("  CV log-loss:", stage1_ll)
     print("  CV perplexity:", stage1_perplex)
 
-    # -----------------------
-    # 7) Threshold sweep for best combined class4 accuracy
-    # -----------------------
+    # Threshold sweep for best combined class4 accuracy
     thresholds = np.linspace(0.3, 0.7, 9)
     best_acc, best_t = -1.0, 0.5
 
@@ -375,9 +355,7 @@ def main():
     print("\nCombined class4 CV log-loss (strict gate, hierarchical probs):", ll4)
     print("Combined class4 CV perplexity:", perplex4)
 
-    # -----------------------
-    # 8) Fit full models + create submission
-    # -----------------------
+    # Fit full models + create submission
     lr_gate.fit(X_hyv, y2)
     svm_full.fit(X_hyv, y4)
 
@@ -401,7 +379,7 @@ def main():
         {
             "id": df_test["id"].values if "id" in df_test.columns else np.arange(len(df_test)),
             "class4": final_class4,
-            "p": p_event_test,  # ONLY class2 probability from Stage 1
+            "p": p_event_test,  
         }
     )
 
